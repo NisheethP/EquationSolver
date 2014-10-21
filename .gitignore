@@ -30,3 +30,9 @@
 # Others
 *.vcxproj
 *.vcxproj.*
+*.opensdf
+*.sdf
+*.sln
+*.v12.suo
+
+
