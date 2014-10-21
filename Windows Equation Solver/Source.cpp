@@ -6,19 +6,21 @@
 #include <strsafe.h>
 #include <vector>
 
-typedef long double LDOUBLE;
-typedef std::vector<std::vector<LDOUBLE>> LDOUBLEVECTOR;
+typedef std::vector<std::vector<double>> DOUBLEVECTOR;
+
+DOUBLEVECTOR coeffs(3, std::vector<double>(4,0.0));
 
 static TCHAR WindowClass[] = L"WindowProject1";
-static TCHAR WindowTitle[] = L"Test 2";
+static TCHAR WindowTitle[] = L"Equation Solver";
 HINSTANCE hInst;
+HWND g_hGetInput = NULL;
 
 /*
  * FUNCTION PROTOTYPES
  */
-
 LRESULT CALLBACK WinProc(HWND, UINT, WPARAM, LPARAM);
-BOOL GetInputProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK GetInputProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+
 void ErrorExit(LPTSTR lpszFunction);
 
 /*
@@ -104,6 +106,17 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_CREATE:
+		g_hGetInput = CreateDialog(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_GETINPUT), hWnd, GetInputProc);
+		if (g_hGetInput != NULL)
+		{
+			ShowWindow(g_hGetInput, SW_SHOW);
+		}
+
+		else
+		{
+			MessageBox(hWnd, L"CreateDialog returned NULL", L"Warning!",
+				MB_OK | MB_ICONINFORMATION);
+		}
 		break;
 	case WM_CLOSE:
 		DestroyWindow(hWnd);
@@ -133,7 +146,35 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 }
 
-
+/*
+ * HANDLING INPUT WINDOW FOR GETTING COEFFICIENTS
+ */
+BOOL CALLBACK GetInputProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	switch (Message)
+	{
+	case WM_INITDIALOG:
+		for (int rowIter = 0; rowIter < 3; rowIter++)
+		{
+			for (int colIter = 0; colIter < 4; colIter++)
+			{
+				SetDlgItemText(hwnd, IDC_EDIT1 + (4 * rowIter + colIter), L"0");
+			}
+		}
+		break;
+	case WM_COMMAND:
+		switch (wParam)
+		{
+		case IDC_SOLVE:
+						
+			break;
+		}
+		break;
+	default:
+		return FALSE;
+	}
+	return TRUE;
+}
 
 /*
  * GET LAST ERROR CODE
@@ -181,4 +222,3 @@ void ErrorExit(LPTSTR lpszFunction)
 	LocalFree(lpDisplayBuf);
 	ExitProcess(dw);
 }
-
