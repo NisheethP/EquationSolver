@@ -5,23 +5,32 @@
 #include <tchar.h>
 #include <strsafe.h>
 #include <vector>
+#include "Matrix.h"
+#include <string>
 
-typedef std::vector<std::vector<double>> DOUBLEVECTOR;
+const UINT SHOWOUTPUT = 20000;
 
-DOUBLEVECTOR coeffs(3, std::vector<double>(4,0.0));
+using std::vector;
+
+typedef std::vector<std::vector<double>> VECTOR2D;
+VECTOR2D coeffs(3, std::vector<double>(4, 0));
 
 static TCHAR WindowClass[] = L"WindowProject1";
 static TCHAR WindowTitle[] = L"Equation Solver";
 HINSTANCE hInst;
 HWND g_hGetInput = NULL;
+HWND g_hShowOutput = NULL;
 
 /*
  * FUNCTION PROTOTYPES
  */
 LRESULT CALLBACK WinProc(HWND, UINT, WPARAM, LPARAM);
 BOOL CALLBACK GetInputProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK OutputProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 
 void ErrorExit(LPTSTR lpszFunction);
+int Conv_2Dto1D(int row, int col, int numCol = 4);
+void TruncateNum(std::wstring& str);
 
 /*
  * MAIN FUNCTION
@@ -43,7 +52,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	window.hInstance = hInstance;
 	window.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_APPLICATION));
 	window.hCursor = LoadCursor(NULL, IDC_ARROW);
-	window.hbrBackground = (HBRUSH)4;
+	window.hbrBackground = (HBRUSH)(CTLCOLOR_DLG + 1);
 	window.lpszMenuName = MAKEINTRESOURCE(IDR_MENU1);
 	window.lpszClassName = WindowClass;
 	window.hIconSm = LoadIcon(window.hInstance, MAKEINTRESOURCE(IDI_ICON1));
@@ -107,6 +116,19 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 		g_hGetInput = CreateDialog(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_GETINPUT), hWnd, GetInputProc);
+		
+		if (g_hGetInput != NULL)
+		{
+			ShowWindow(g_hGetInput, SW_SHOW);
+		}
+
+		else
+		{
+			MessageBox(hWnd, L"CreateDialog returned NULL", L"Warning!",
+				MB_OK | MB_ICONINFORMATION);
+		}
+
+		g_hShowOutput = CreateDialog(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_OUTPUT), hWnd, OutputProc);
 		if (g_hGetInput != NULL)
 		{
 			ShowWindow(g_hGetInput, SW_SHOW);
@@ -158,7 +180,7 @@ BOOL CALLBACK GetInputProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
 		{
 			for (int colIter = 0; colIter < 4; colIter++)
 			{
-				SetDlgItemText(hwnd, IDC_EDIT1 + (4 * rowIter + colIter), L"0");
+				SetDlgItemInt(hwnd, IDC_EDIT1 + Conv_2Dto1D(rowIter, colIter), 0, TRUE);
 			}
 		}
 		break;
@@ -166,10 +188,54 @@ BOOL CALLBACK GetInputProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
 		switch (wParam)
 		{
 		case IDC_SOLVE:
-						
+			for (int rowIter = 0; rowIter < 3; rowIter++)
+			{
+				for (int colIter = 0; colIter < 4; colIter++)
+				{
+					int x =	GetDlgItemInt(hwnd, IDC_EDIT1 + Conv_2Dto1D(rowIter, colIter), NULL, TRUE);
+					coeffs[rowIter][colIter] = x;
+				}
+			}
+			SendNotifyMessage(g_hShowOutput, SHOWOUTPUT, NULL, NULL);
+			ShowWindow(g_hGetInput, SW_HIDE);
 			break;
 		}
 		break;
+	default:
+		return FALSE;
+	}
+	return TRUE;
+}
+
+
+/*
+ * SHOWS THE OUTPUT
+ */
+BOOL CALLBACK OutputProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	switch (Message)
+	{
+	case WM_INITDIALOG:
+		break;
+	case SHOWOUTPUT:
+	{
+		for (int rowIter = 0; rowIter < 3; rowIter++)
+		{
+			for (int colIter = 0; colIter < 4; colIter++)
+			{
+				SetDlgItemInt(hwnd, IDC_COEFF1 + Conv_2Dto1D(rowIter, colIter), coeffs[rowIter][colIter], TRUE);
+			}
+		}
+		Solution<3> soln = SolveEqn<3>(Matrix(coeffs));
+		for (int i = 0; i < 3; i++)
+		{
+			std::wstring str = std::to_wstring(soln[i]);
+			TruncateNum(str);
+			SetDlgItemText(g_hShowOutput, IDC_VAULE1 + i, (LPCWSTR)str.c_str());
+		}
+		ShowWindow(g_hShowOutput, SW_SHOW);
+		break;
+	}
 	default:
 		return FALSE;
 	}
@@ -221,4 +287,32 @@ void ErrorExit(LPTSTR lpszFunction)
 	LocalFree(lpMsgBuf);
 	LocalFree(lpDisplayBuf);
 	ExitProcess(dw);
+}
+
+/*
+ * CONVERT 2D ARRAY LOC TO 1D ARRAY LOC
+ */
+int Conv_2Dto1D(int row, int col, int numCol /* = 4*/)
+{
+	return (numCol*row + col);
+}
+
+/*
+ *TRUNCATE THE STRING OF A NUMBER TO REMOVE TRAILING ZEROES
+ */
+void TruncateNum(std::wstring& str)
+{
+	int Size = str.size();
+	for (int i = Size - 1; i >= 0; i--)
+	{
+		if (str.at(i) == '.')
+		{
+			str.pop_back();
+			break;
+		}
+		else if (str.at(i) != '0')
+			break;
+		else if (str.at(i) == '0')
+			str.pop_back();
+	}
 }
